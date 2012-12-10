@@ -66,6 +66,9 @@ class Student
 end
 
 POSITIONS = {
+  accompanying: [52, 19],
+  coe_criminalrecord: [65, 10],
+  deportation: [68,17],
   nationality: [17, 7],
   name: [20, 5],
   place: [26, 15],
@@ -130,7 +133,75 @@ POSITIONS_3 = {
   name: [5, 12]
 }
 
+TUB_FORM = {
+  last_name: [10, 2],
+  middle_name: [10,4],
+  first_name: [10,3],
+  katakana: [12,2],
+  nationality: [15, 2],
+  tub_birthday: [15, 6],
+  place_of_birth: [20, 18],
+  tub_plz_permanent: [23,2],
+  tub_city_permanent: [23,3],
+  tub_address_permanent: [25,3],
+  tub_plz_present: [28,2],
+  tub_city_present: [28,3],
+  tub_address_present: [30,3],
+  email: [33,2],
+  phone: [33,7],
+  tub_date_of_arrival: [36, 3],
+  intended_period: [36, 16],
+  passport: [40,3],
+  tub_passport_expiration: [40,7],
+  visa_place: [43,4],
+  port_of_entry: [43,11],
+  tub_last_visit_start: [47,7],
+  tub_last_visit_end: [47,10],
+  university: [65,2],
+  tub_enrollment: [68,3],
+  tub_graduation: [72,4],
+  major: [75,2],
+  minor: [75, 10],
+  years_of_education: [78,8],
+  relation_1:[92, 4],
+  relation_1_name: [82, 4],
+  relation_1_birthday: [84, 4],
+  relation_1_nationality: [86,4],
+  relation_1_employment: [88, 4],
+  relation_1_residence: [90, 4],
+  relation_2:[92, 5],
+  relation_2_name: [82, 5],
+  relation_2_birthday: [84, 5],
+  relation_2_nationality: [86,5],
+  relation_2_employment: [88, 5],
+  relation_2_residence: [90, 5],
+  relation_3:[92, 6],
+  relation_3_name: [82, 6],
+  relation_3_birthday: [84, 6],
+  relation_3_nationality: [86,6],
+  relation_3_employment: [88, 6],
+  relation_3_residence: [90, 6],
+  tub_male: [19,1],
+  tub_female: [19,2],
+  tub_married: [19,7],
+  tub_single: [19, 12],
+  tub_times: [47, 2],
+  tub_previous_visits_yes: [47, 1],
+  tub_previous_visits_no: [49, 1]
+}
+
 TRANSLATOR = {
+  tub_previous_visits_yes: :vorherigejapanbesuche,
+  tub_previous_visits_no: :vorherigejapanbesuche,
+  tub_times: :anzahl,
+  tub_married: :familienstand,
+  tub_single: :familienstand,
+  tub_male: :geschlecht,
+  tub_female: :geschlecht,
+  last_name: :nachname,
+  middle_name: :mittlerername,
+  first_name: :vorname,
+  katakana: :nameinkatakana,
   nationality: :nationalitt,
   name: [:vorname,:mittlerername,:nachname],
   place: :wohnorthauptwohnsitz,
@@ -182,7 +253,26 @@ TRANSLATOR = {
   male: :geschlecht,
   female: :geschlecht,
   married: :familienstand,
-  past_entry: :vorherigejapanbesuche
+  past_entry: :vorherigejapanbesuche,
+  tub_birthday: :geburtstag,
+  tub_plz_permanent: :plzhauptwohnsitz,
+  tub_city_permanent: :wohnorthauptwohnsitz,
+  tub_address_permanent: :straehauptwohnsitz,
+  tub_plz_present: :plzderzeitigerwohnsitz,
+  tub_city_present: :wohnortderzeitigerwohnsitz,
+  tub_address_present: :straederzeitigerwohnsitz,
+  email: :email,
+  phone: :telefon,
+  tub_date_of_arrival: :ankunftsdatum,
+  intended_period: :lngedesaufenthalts,
+  tub_passport_expiration: :ablaufdatum,
+  university: nil,
+  tub_last_visit_start: :beginnderletztenreise,
+  tub_last_visit_end: :endederletzenreise,
+  tub_enrollment: :einschreibungsdatum,
+  tub_graduation: :vorrabschlussdatum,
+  major: :hauptfach,
+  minor: :nebenfach
 
 }
 
@@ -191,7 +281,26 @@ DataMapper.auto_migrate!
 
 helpers do
   def construct_field(student, key)
+    puts key
     case key
+    when :tub_previous_visits_yes
+      text = student[TRANSLATOR[key]][/ein/] ? "    有" : "    (有)"
+    when :tub_previous_visits_no
+      text = student[TRANSLATOR[key]][/ein/] ? "　(無)" : "　無"
+    when :tub_times
+      text = "#{student[TRANSLATOR[key]]}回"
+    when :tub_married
+      text = !student[TRANSLATOR[key]][/edig/] ? "５．婚姻の(有)" : "５．婚姻の有"
+    when :tub_single
+      text = student[TRANSLATOR[key]][/edig/] ? "(無)" : "無"
+    when :tub_male
+      text = student[TRANSLATOR[key]][/Männlich/] ? "４．(男)" : "４．男"
+    when :tub_female
+      text = student[TRANSLATOR[key]][/Männlich/] ? "女" : "(女)"
+    when :university
+      text = "Eberhard-Karls University Tuebingen"
+    when :coe_criminalrecord
+      text = "） ・ (無)"
     when :accompanying
       text = "有・(無)"
     when :criminalrecord
@@ -206,7 +315,7 @@ helpers do
       text = student[TRANSLATOR[key]][/Männlich/] ? "(男)" : "男"
     when :female
       text = student[TRANSLATOR[key]][/Männlich/] ? "女" : "(女)"
-    when /^relation.+day$/
+    when /^(tub|relation).+day$/
       date = student[TRANSLATOR[key]]
       text = date ? date.to_s : ""
     when /year$/
@@ -270,32 +379,72 @@ helpers do
     doc.writeText(cell, "string", text)
     end
 
-    filebase = "coe_#{student[:studentwikiname].split(".")[1]}.ods"
-    filename = "public/" + filebase
+    wikiname = student[:studentwikiname].split(".")[1]
+    coebase = "coe_#{wikiname}"
+    filename = "public/" + coebase + ".ods"
+    doc.saveAs(filename)
+    `unoconv -f xls #{filename}`
+
+    `cp tub_clean.ods tub_temp.ods`
+
+    doc = Rods.new("tub_temp.ods")
+
+    TUB_FORM.each do |key, (row, col)|
+      text = construct_field(student,key)
+      cell = doc.getCell(row, col)
+      doc.writeText(cell, "string", text)
+    end
+
+    tubbase = "tub_#{wikiname}"
+    filename = "public/" + tubbase + ".ods"
     doc.saveAs(filename)
 
     `unoconv -f pdf #{filename}`
-    return filebase
+
+    return [coebase + ".xls", tubbase + ".pdf"]
   end
 
 end
 
 post "/fillForm" do
   stuff = Yajl::Parser.parse(request.body.read)
-  stuff["NameinKatakana"] = HTMLEntities.new.decode(stuff["NameinKatakana"])
+  #stuff["NameinKatakana"] = (stuff["NameinKatakana"])
 
   newHash = {}
 
   stuff.each do |k, v|
     k = k.downcase.gsub(".","").to_sym
-    if v and Student.properties[k].class == DataMapper::Property::Date
-      v = Date.parse v
+    if Student.properties[k].class == DataMapper::Property::Date
+      if v and v.gsub(/\s/,"") != ""
+        v = Date.parse v
+      else
+        v = nil
+      end
+    else
+      v = HTMLEntities.new.decode v
     end
     newHash[k] = v
   end
 
   wikiname = newHash.delete(:studentwikiname)
-  s = Student.first_or_create({:studentwikiname => wikiname}, newHash)
+  s = Student.first_or_create({:studentwikiname => wikiname})
+  s.update(newHash);
+  s.save
+
+  rokuhara = "http://rokuhara.japanologie.kultur.uni-tuebingen.de/foswiki/bin/rest/KyotoDataPlugin/filledForm"
+  filenames = fill_document s
+  f = Yajl::Encoder.encode(filenames)
+  r = RestClient.get(rokuhara, {params: {files: f}})
+  return "OK"
+end
+
+get "/generateForm" do
+  rokuhara = "http://rokuhara.japanologie.kultur.uni-tuebingen.de/foswiki/bin/rest/KyotoDataPlugin/filledForm"
+  s = Student.first(:studentwikiname => data[:name])
+  filenames = fill_document s
+  f = Yajl::Encoder.encode(filenames)
+  r = RestClient.get(rokuhara, {params: {files: f}})
+  return "OK"
 end
 
 post "/generateForms" do
@@ -304,7 +453,7 @@ post "/generateForms" do
   filenames = Student.all.map do |student|
     fill_document student
   end
-  filenames.map! {|name| [name, name[0..-4] + "pdf"]}.flatten!
+  filenames.flatten!
   f = Yajl::Encoder.encode(filenames)
   r = RestClient.get(rokuhara, {params: {files: f}})
   return "OK"
