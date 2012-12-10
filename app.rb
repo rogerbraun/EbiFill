@@ -277,7 +277,7 @@ TRANSLATOR = {
 }
 
 DataMapper.setup(:default, 'sqlite:students.db')
-DataMapper.auto_migrate!
+DataMapper.auto_upgrade!
 
 helpers do
   def construct_field(student, key)
@@ -430,6 +430,9 @@ post "/fillForm" do
   s = Student.first_or_create({:studentwikiname => wikiname})
   s.update(newHash);
   s.save
+
+  INV_TRANS = TRANSLATOR.invert
+  ToXls::Writer.new(Student.all, :name => 'Students', :columns => Student.properties.map(&:name), :headers => Student.properties.map(&:name).map{|name| INV_TRANS[name].to_s}).write_io("public/studentData.xls")
 
   rokuhara = "http://rokuhara.japanologie.kultur.uni-tuebingen.de/foswiki/bin/rest/KyotoDataPlugin/filledForm"
   filenames = fill_document s
