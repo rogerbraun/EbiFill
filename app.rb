@@ -62,6 +62,8 @@ class Student
   property :straederzeitigerwohnsitz, String
   property :plzderzeitigerwohnsitz, String
   property :geschlecht, String
+  property :heimatadresseco, String
+  property :studienadresseco, String
 
 end
 
@@ -116,7 +118,8 @@ POSITIONS = {
   past_entry: [58,12],
   accompanying: [52, 19],
   criminalrecord: [65, 10],
-  deportation: [68, 17]
+  deportation: [68, 17],
+  intended_period: [52, 8]
 }
 
 POSITIONS_2 = {
@@ -134,6 +137,9 @@ POSITIONS_3 = {
 }
 
 TUB_FORM = {
+  heimatadresseco: [25, 4],
+  studienadresseco: [30, 4],
+  year_of_exchange: [5, 1],
   last_name: [10, 2],
   middle_name: [10,4],
   first_name: [10,3],
@@ -228,7 +234,7 @@ TRANSLATOR = {
   end_visit_day: :endederletzenreise,
   relation_1: :verwandter1verwandschaftsgrad,
   relation_1_name: :verwandter1name,
-  relation_1_birthday: :verwandter2geburtstag,
+  relation_1_birthday: :verwandter1geburtstag,
   relation_1_nationality: :verwandter1nationalitt,
   relation_1_employment: :verwandter1arbeitsplatz,
   relation_1_residence: :verwandter1aufenthaltsstatus,
@@ -272,7 +278,9 @@ TRANSLATOR = {
   tub_enrollment: :einschreibungsdatum,
   tub_graduation: :vorrabschlussdatum,
   major: :hauptfach,
-  minor: :nebenfach
+  minor: :nebenfach,
+  heimatadresseco: :heimatadresseco,
+  studienadresseco: :studienadresseco
 
 }
 
@@ -282,7 +290,10 @@ DataMapper.auto_upgrade!
 helpers do
   def construct_field(student, key)
     puts key
+    begin
     case key
+    when :year_of_exchange
+      text = "    #{student[:ankunftsdatum].year}年度テュービンゲン大学同志社日本語センター"
     when :tub_previous_visits_yes
       text = student[TRANSLATOR[key]][/ein/] ? "    有" : "    (有)"
     when :tub_previous_visits_no
@@ -326,7 +337,7 @@ helpers do
       text = date ? date.month.to_s : ""
     when /day$/
       date = student[TRANSLATOR[key]]
-      text = date ? date.month.to_s : ""
+      text = date ? date.day.to_s : ""
     when /^(name|supporter_name)$/
       positions = TRANSLATOR[:name]
       first_name = student[positions[0]]
@@ -344,6 +355,11 @@ helpers do
       text = [street, zip, city, country].join(", ")
     else
       text = student[TRANSLATOR[key]]
+    end
+    rescue => e
+      puts "Error..."
+      puts e
+      text = ""
     end
     replace = {"ü" => "ue", "ä" => "ae", "ö" => "oe", "ß" => "ss", "Ä" => "Ae", "Ü" => "Ue", "Ö" => "Oe"}
     text = text.to_s
@@ -406,6 +422,32 @@ helpers do
 
 end
 
+
+PRE_TRANSLATOR = {
+  verwandter2geburtsdatum: :verwandter2geburtstag,
+  studienadressewohnort: :wohnortderzeitigerwohnsitz,
+  heimatadressestrae: :straehauptwohnsitz,
+  verwandter3nachnamevorname: :verwandter3name,
+  gesamteschulundstudienzeitinjahren: :bildungsjahreinsgesamt,
+  studienadresseplz: :plzderzeitigerwohnsitz,
+  verwandter3geburtsdatum: :verwandter3geburtstag,
+  lngedesaufenthaltsinmonaten: :lngedesaufenthalts,
+  studienadressestrae: :straederzeitigerwohnsitz,
+  verwandter2nachnamevorname: :verwandter2name,
+  studienadresseland: :landderzeitigerwohnsitz,
+  verwandter1geburtsdatum: :verwandter1geburtstag,
+  heimatadresseplz: :plzhauptwohnsitz,
+  geburtsdatum: :geburtstag,
+  heimatadressewohnort: :wohnorthauptwohnsitz,
+  ankunftsdatuminjapan: :ankunftsdatum,
+  verwandter1nachnamevorname: :verwandter1name,
+  reisepassgltigbis: :ablaufdatum,
+  reisepassnummer: :passnummer,
+  heimatadresseland: :landhauptwohnsitz,
+  vorraussichtlicherstudiumsabschluss: :vorrabschlussdatum,
+  studiumsbeginn: :einschreibungsdatum
+}
+
 post "/fillForm" do
   stuff = Yajl::Parser.parse(request.body.read)
   #stuff["NameinKatakana"] = (stuff["NameinKatakana"])
@@ -414,6 +456,11 @@ post "/fillForm" do
 
   stuff.each do |k, v|
     k = k.downcase.gsub(".","").to_sym
+    k = PRE_TRANSLATOR[k] if PRE_TRANSLATOR[k]
+    if !Student.properties[k]
+      puts k
+      next
+    end
     if Student.properties[k].class == DataMapper::Property::Date
       if v and v.gsub(/\s/,"") != ""
         v = Date.parse v
